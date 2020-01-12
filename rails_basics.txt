@@ -1,0 +1,202 @@
+============================== Ruby on Rails ================================
+
+============ Rails basics ============
+
+====== Commandes ======
+
+Créer une nouvelle application.
+
+rails new name_app
+
+--------------------------------------------------------------------------------
+
+Lancer le serveur local.
+
+rails s / rails server
+
+--------------------------------------------------------------------------------
+
+Générer un nouveau controller avec view et action.
+
+rails g controller RecipesController index
+
+--------------------------------------------------------------------------------
+
+Installer les gems indiquées dans le Gemfile :
+
+bundle install
+
+--------------------------------------------------------------------------------
+
+Mettre à jour les gems :
+
+bundle update
+
+--------------------------------------------------------------------------------
+
+Indiquer directement la base de données à la création de l'application.
+
+rails new test_pg -d postgresql
+
+--------------------------------------------------------------------------------
+
+Indiquer la version de rails qu'on veut utiliser directement à la création de l'application.
+
+rails _4.2.8_ new newrecipefinder
+
+============ ActiveRecord ============
+ ORM : Object Relational Mapping
+====== Commandes ======
+
+Génération d'une table avec des colonnes. Possibilité d'indiquer le type de la colonne, sinon string est le type par défaut.
+
+rails g scaffold car make color year:integer
+
+--------------------------------------------------------------------------------
+
+Appliquer la dernière migration.
+
+rake db:migrate
+
+--------------------------------------------------------------------------------
+
+Enlever la dernière migration. Attention, cette commande est destructrice de données !
+
+rake db:rollback
+
+--------------------------------------------------------------------------------
+
+Ajouter une migration, par exemple une colonne dans une table. ActiveRecord est assez intelligent pour détection la table et le nom de la nouvelle colonne concernée.
+
+rails g migration add_price_to_cars 'price:decimal{10,2}'
+
+--------------------------------------------------------------------------------
+
+Ajouter un modèle avec plusieurs colonnes. Rails est assez intelligent pour créer une table nommée "People" lorsqu'on fait un rake db:migrate
+Voir config/initializers/inflections.rb pour plus d'explications : person => people
+
+rails g model person first_name last_name
+
+
+--------------------------------------------------------------------------------
+Manipuler la base de données utilisée.
+
+rails db
+
+Commandes utiles sur sqlite :
+.help : affiche des commandes utiles
+.headers on : affiche le nom des colonnes lorsqu'on affiche des éléments des tables
+.tables : affiche les tables de la BDD
+.mode columns : améliore l'affichage des colonnes
+
+--------------------------------------------------------------------------------
+
+Ouvrir la console rails dans un projet existant
+
+rails c
+
+--------------------------------------------------------------------------------
+
+CRUD : Create Retrieve Update Delete
+
+=== CREATE ===
+
+1st method :
+p1 = Person.new; p1.first_name = "Jo"; p1.last_name = "Smith"
+p1.save
+
+2nd method :
+p2  = Person.new(first_name: "John", last_name: "Doe"); p2.save
+
+3rd method:
+p3 = Person.create(first_name: "Jon", last_name: "Doe")
+
+=== RETRIEVE ===
+
+METHODS :
+find(id), find(id1, id2), first, last, take, all, order(:column), order(column: :desc), pluck
+where(hash) : return ActiveRecord::Relation
+find_by(conditions_hash) : same as where, but returns a single result or nil
+find_by!(conditions_hash) : same as find_by, but throws an exception if cannot find the result
+limit(n) : limit how many records come back
+offset(n) : not start at the beginning, skip a fiew
+
+
+Examples :
+
+Person.all.order(first_name: :desc) => ActiveRecord::Relation object
+
+To array :
+Person.all.order(first_name: :desc).to_a
+
+Person.first
+Person.all.first
+Person.all[0] => less optimized than above
+
+Person.take => random
+Person.take 2
+
+Person.all.map { |person| person.first_name }
+< = >
+Person.pluck(:first_name) => more optimized than the above
+
+Person.where(last_name: "Doe")
+Person.where(last_name: "Doe").first
+Person.where(last_name: "Doe")[0]
+Person.where(last_name: "Doe").pluck(:first_name)
+
+Person.find_by(last_name: "Doe")
+
+Person.offset(1).limit(1).all.map { |person| "#{person.last_name} #{person.first_name}" }
+
+=== UPDATE ===
+
+1st method :
+
+jane = Person.find_by first_name: "Jane"
+jane.last_name = "Smith"
+jane.save
+
+2nd method :
+
+Person.find_by(last_name: "Smith").update(last_name: "Smithson") => only one person is update
+
+To update all people with name Smith, call update_all instead of update
+
+=== DELETE ===
+
+destroy(id) or destroy : removes a particular instance from the DB. Instantiates an object first and performs callbacks before removing
+delete(id) : removes the row from the DB
+delete_all : CAREFUL...
+
+Example :
+
+jane = Person.find_by first_name: "Jane"
+jane.destroy
+
+OR
+
+Person.delete(jane.id)
+
+
+============ Heroku ============
+
+====== Commandes ======
+
+heroku login
+
+heroku create
+
+heroku open
+
+heroku logs --tail
+
+heroku ps
+
+heroku ps:scale web=0
+
+heroku ps:scale web=1
+
+heroku pg:info
+
+heroku local web
