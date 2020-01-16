@@ -77,6 +77,18 @@ Voir config/initializers/inflections.rb pour plus d'explications : person => peo
 
 rails g model person first_name last_name
 
+    :binary
+    :boolean
+    :date
+    :datetime
+    :decimal
+    :float
+    :integer
+    :primary_key
+    :string
+    :text
+    :time
+    :timestamp
 
 --------------------------------------------------------------------------------
 Manipuler la base de données utilisée.
@@ -95,6 +107,7 @@ Ouvrir la console rails dans un projet existant
 
 rails c
 
+To deactivate sql logs in rails c : ActiveRecord::Base.logger = nil
 --------------------------------------------------------------------------------
 
 CRUD : Create Retrieve Update Delete
@@ -110,6 +123,22 @@ p2  = Person.new(first_name: "John", last_name: "Doe"); p2.save
 
 3rd method:
 p3 = Person.create(first_name: "Jon", last_name: "Doe")
+
+4th method :
+
+We can fill the file db/seeds.rb with entries of table and call :
+
+rake db:seed
+
+Example of db/seeds.rb :
+
+Person.destroy_all # important if you want to reset your table
+
+Person.create! [   # Person.create! with '!' to get log errors
+  { first_name: "Kalman", last_name: "Smith", age: 33},
+  { first_name: "John", last_name: "Whatever", age: 27},
+  { first_name: "Michael", last_name: "Smith", age: 15}
+]
 
 === RETRIEVE ===
 
@@ -145,9 +174,53 @@ Person.where(last_name: "Doe").first
 Person.where(last_name: "Doe")[0]
 Person.where(last_name: "Doe").pluck(:first_name)
 
-Person.find_by(last_name: "Doe")
+Person.find_by(last_name: "Doe") # just the first record
 
 Person.offset(1).limit(1).all.map { |person| "#{person.last_name} #{person.first_name}" }
+
+===== SQL Fragment with where and find_by : =====
+
+Person.where("age BETWEEN 30 and 33").to_a
+
+Person.find_by("first_name LIKE '%man'")
+
+Problem of SQL injections!!! Example of hacking :
+
+login = "john2"; pass = "no_idea"
+
+# What we want to do :
+
+Person.where("login = '#{login}' AND pass = '#{pass}'")
+=> SELECT "people".* FROM "people" WHERE (login = 'john2' AND pass = 'no_idea') # retrieve one result
+
+# What hacker wants to do :
+
+pass = "got you' OR 'x' = 'x"
+
+Person.where("login = '#{login}' AND pass = '#{pass}'")
+=> SELECT "people".* FROM "people" WHERE (login = 'john2' AND pass = 'got you' OR 'x' = 'x') # always true, so show the entire table
+
+==== To avoid SQL injections ====
+
+1st method : Array conditions
+
+Examples :
+
+Person.where("age BETWEEN ? AND ?", 28, 34).to_a
+Person.where("first_name LIKE ? OR last_name LIKE ?", '%J%', '%J%').to_a
+Client.first(:conditions => ["orders_count = ?", params[:orders]])
+Client.first(:conditions => ["orders_count = ? AND locked = ?", params[:orders], false])
+
+Cons :
+We have to keep track of the order of parameters "hiding" the '?'.
+If we have n '?', we need to pass in n values, even if they are a reference to the same value.
+
+2nd method : Hash conditions
+
+Examples :
+
+Person.where("age BETWEEN :min_age AND :max_age", min_age: 28, max_age: 34).to_a
+Person.where("first_name LIKE :pattern OR last_name LIKE :pattern", pattern: '%J%').to_a
 
 === UPDATE ===
 
@@ -177,6 +250,81 @@ jane.destroy
 OR
 
 Person.delete(jane.id)
+
+
+========== RELATIONS in DATABASE =============
+
+==== One to One ====
+
+rails g model personal_info height:float weight:float person:references
+
+We have to put ourselves this line in the Person model : has_one :personal_info
+because we don't know at generation if we will have one or many personal_info entries.
+
+
+1st example :
+
+lebron = Person.find_by first_name: "LeBron"
+pinfo = PersonalInfo.create height: 7.1, weight: 150
+lebron.personal_info = pinfo
+
+2nd example :
+
+gates = Person.find_by last_name: "Gates"
+gates.build_personal_info height: 6.0, weight: 180
+gates.save
+
+3rd example :
+
+josh = Person.find_by first_name: "Josh"
+josh.create_personal_info height: 5.5, weight: 135
+
+==== One to Many ====
+
+One person can have many jobs. It will be the Job model which will have a foreign key to a person.
+
+rails g model job title company position_id person:references
+
+Don't forget to put in Person model :
+
+has_many :jobs
+OR
+has_many :my_jobs, class_name: "Job"
+
+Examples :
+
+Job.create company: "MS", title: "Developer", position_id: "#1234"
+p1 = Person.first
+p1.jobs << Job.first # appen the job to the existing ones assigned to p1
+
+We can also do that :
+
+p1.jobs = jobs # replaces the existing jobs with a new array
+p1.jobs.clear # disassociates jobs from this person by setting the foreign key to NULL
+
+And retrive infos : p1.jobs ; p1.jobs.first ; Job.first.person ;
+
+To seed directly jobs within a person in db/seeds.rb :
+
+Person.first.jobs.create! [
+  { title: "Developer", company: "MS", position_id: "#1234" },
+  { title: "Developer", company: "MS", position_id: "#1235" }
+]
+
+To perform researches on jobs with a person :
+
+Person.last.jobs.where(company: "MS").to_a
+
+==== To avoid trash in tables because of removing or updating a reference ====
+
+Put a :dependent option next to a "has_one"/"has_many" with :
+:delete => remove associated objects
+:destroy => same as above but remove the association by calling destroy on it
+:nullify => set the FK to NULL
+
+Example :
+
+has_one :personal_info, dependent: :destroy
 
 
 ============ Heroku ============
