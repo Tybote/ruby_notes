@@ -285,6 +285,9 @@ One person can have many jobs. It will be the Job model which will have a foreig
 
 rails g model job title company position_id person:references
 
+Another example with a migation :
+rails g migration add_user_to_todo_lists 'user:references'
+
 Don't forget to put in Person model :
 
 has_many :jobs
@@ -326,6 +329,176 @@ Example :
 
 has_one :personal_info, dependent: :destroy
 
+==== Many to Many ====
+
+We will create a join table to do that, with this command (using tables names):
+
+rails g migration create_hobbies_people person:references hobby:references
+
+Join table needs to only exist in the DB, but not in Ruby code.
+
+Don't forget to add "id: false " like below in the migration, because we don't need a primary key for a join table:
+
+class CreateHobbiesPeople < ActiveRecord::Migration
+  def change
+    create_table :hobbies_people, id: false do |t|
+      t.references :person, index: true, foreign_key: true
+      t.references :hobby, index: true, foreign_key: true
+    end
+  end
+end
+
+Also, add this line (changing the name of the table obviously) to the models composing the new joint :
+
+In Person model :
+  has_and_belongs_to_many :hobbies
+
+In Hobby model :
+  has_and_belongs_to_many :people
+
+==== Calculations ====
+
+We can use the keyword "through:" to manipulate data through several tables.
+For example, if we want salary_ranges of a person :
+person -> job -> salary_range, we can add this in Person model :
+
+class Person < ActiveRecord::Base
+  ....
+  has_many :jobs
+  ....
+  has_many :approx_salaries, through: :jobs, source: :salary_range # pass through jobs to get salary_range
+
+  def max_salary # manipulate data efficiently through the DB !
+    approx_salaries.maximum(:max_salary)
+  end
+end
+
+
+==== Active Record Scopes ====
+
+We can add different types of scopes to retrieve data for example.
+They return ActiveRecord::Relation
+
+Default Scope :
+
+class Hobby < ActiveRecord::Base
+    has_and_belongs_to_many :people
+    default_scope { order :name } # To sort in ascending order
+end
+
+And then, we can call :
+Hobby.pluck :name # => [Music, Programming]
+
+Or unscoping :
+Hobby.unscoped.pluck :name # => [Programming, Music]
+
+Named Scope :
+
+Again, add in a model, for example:
+
+scope :ordered_by_age, -> { order age: :desc}
+scope :starts_with, -> (starting_string) { where("first_name LIKE ?", "#{starting_string}%")}
+
+And for use that :
+
+Person.ordered_by_age.pluck :age
+
+And chain the two scopes :
+
+Person.ordered_by_age.starts_with("Jo").pluck :age, :first_name
+Person.ordered_by_age.limit(2).starts_with("Jo").pluck :age, :first_name
+
+
+==== ActiveRecord Validations ====
+
+We can add some validations to future records.
+For example, to specify that some fields have to be indicated, place these in a model with corresponding columns names :
+
+validates :title, :company, presence: true
+
+Common validators:
+:numericality - validates numeric input
+:length - validates value is a certain length
+:format - validates value complies with some regular expression format
+:inclusion - validates value is inside specified range
+:exclusion - validates value is out of the specified range
+
+We can write our own validator:
+
+2 steps :
+
+1: Create a method in a model with a condition and an error message :
+
+def min_is_less_than_max
+  if min_salary > max_salary
+    errors.add(:min_salary, "cannot be greater than maximum salary")
+  end
+end
+
+2: Add a validate member in the model with the method name:
+
+validate :min_is_less_than_max
+
+==== N + 1 queries issue ====
+
+Sometimes a lot of queries don't have to be performed. Indeed we could use Includes instead.
+
+For example, to get personal infos of all persons in the database, basically we run this command :
+
+Person.all.each { |p| puts p.personal_info.weight }
+
+Which performs one query to get all people, and one query by person to get their personal infos: 1 + N
+
+SELECT "people".* FROM "people"
+  PersonalInfo Load (0.1ms)  SELECT  "personal_infos".* FROM "personal_infos" WHERE "personal_infos"."person_id" = ? LIMIT 1  [["person_id", 50]]
+210.0
+  PersonalInfo Load (0.0ms)  SELECT  "personal_infos".* FROM "personal_infos" WHERE "personal_infos"."person_id" = ? LIMIT 1  [["person_id", 51]]
+175.0
+  PersonalInfo Load (0.0ms)  SELECT  "personal_infos".* FROM "personal_infos" WHERE "personal_infos"."person_id" = ? LIMIT 1  [["person_id", 53]]
+235.0
+  PersonalInfo Load (0.0ms)  SELECT  "personal_infos".* FROM "personal_infos" WHERE "personal_infos"."person_id" = ? LIMIT 1  [["person_id", 54]]
+210.0
+  PersonalInfo Load (0.0ms)  SELECT  "personal_infos".* FROM "personal_infos" WHERE "personal_infos"."person_id" = ? LIMIT 1  [["person_id", 55]]
+199.0
+  PersonalInfo Load (0.0ms)  SELECT  "personal_infos".* FROM "personal_infos" WHERE "personal_infos"."person_id" = ? LIMIT 1  [["person_id", 56]]
+250.0
+
+
+Instead, we could use that command with the "includes" method :
+
+Person.includes(:personal_info).all.each { |p| puts p.personal_info.weight }
+
+Which performs only 2 queries :
+
+SELECT "people".* FROM "people"
+SELECT "personal_infos".* FROM "personal_infos" WHERE "personal_infos"."person_id" IN (50, 51, 53, 54, 55, 56)
+
+==== ActiveRecord Transactions ====
+
+We can create transactions to assure db atomicity.
+
+Example :
+
+ActiveRecord::Base.transaction do
+  david.withdrawal(100)
+  mary.deposit(100)
+end
+
+Exceptions will force a rollback that returns the DB in the state before the transaction begins.
+
+Other examples :
+
+# in a model class, using 2 different ActiveRecord classes.
+
+Account.transaction do
+  balance.save!
+  account.save!
+end
+
+# from an instance
+balance.transaction do
+  ....
+end
 
 ============ Heroku ============
 
