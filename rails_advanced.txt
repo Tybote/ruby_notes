@@ -30,3 +30,6 @@ and see directly the results in views :
 Example of blog posts :
 
 rails g scaffold posts title content:text
+
+We can use the command : "rake routes" to show the different routes we generate,
+according to RESTful actions.
