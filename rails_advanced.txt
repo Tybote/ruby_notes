@@ -1,0 +1,32 @@
+Advanced notes for taking advantages of Ruby On Rails
+
+Remember:
+
+Rails Workflow :
+
+Client -> Router -> Controller -> Model -> DB -> Model -> Controller -> View -> Client
+
+====== REST & ActionPack ======
+
+REST is a set of good principles to build good Web applications.
+REST is all about resources.
+
+A Web applicaiton is called RESTful if it offers these 7 actions :
+
+1. List available resources
+2. Show a specific resource
+3. Destroy an existing resource
+4. Provide a way to create a resource
+5. Create a new resource
+6. Provide a way to update a resource
+7. Update an existing resource
+
+Action Pack is a way to get Controller and View to work together to let us interact with
+resources in the Model layer (CRUD operations).
+
+This command does generate all we need to use RESTful operations automatically
+and see directly the results in views :
+
+Example of blog posts :
+
+rails g scaffold posts title content:text
