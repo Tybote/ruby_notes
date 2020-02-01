@@ -33,3 +33,100 @@ rails g scaffold posts title content:text
 
 We can use the command : "rake routes" to show the different routes we generate,
 according to RESTful actions.
+
+Useful helpers :
+
+"respond_to" (see destroy action) : specifies how to respond to a request with a specified format.
+Takes an optional block which specified the format : ex : html, json, xml, etc
+The block specifies how to handle each format.
+Ex :
+def destroy
+  @post.destroy
+  respond_to do |format|
+    format.html { redirect_to posts_url, notice: 'Post was successfully destroyed.' }
+    format.json { head :no_content }
+  end
+end
+
+"redirect_to" (see the example above) : send a respond to a browser to redirect somewhere else.
+Can take a full url as parameter, or a named route.
+
+
+Strong parameters :
+Allows only specified parameters, for example to create a new item.
+For example with the create method :
+def create
+  @post = Post.new(post_params)
+....
+
+AND
+
+# Never trust parameters from the scary internet, only allow the white list through.
+def post_params
+  params.require(:post).permit(:title, :content)
+end
+
+Flash parameters :
+flash persists for exactly one request after the current request/response cycle.
+Generally used for notify success or fail of a specified action.
+For example, the notice option is a flash parameter in the Create action.
+We could have "alert" instead of "notice" to notify a fail.
+Also, the basic syntax is : flash[:attribute] = value
+
+Examples :
+
+def create
+  @post = Post.new(post_params)
+
+  respond_to do |format|
+    if @post.save
+      format.html { redirect_to @post, notice: 'Post was successfully created.' }
+
+....
+
+def destroy
+   session.delete(:current_user_id)
+   flash[:notice] = "You have successfully logged out."
+   redirect_to root_url
+ end
+
+....
+
+redirect_to root_url, notice: "You have successfully logged out."
+redirect_to root_url, alert: "You're stuck here!"
+redirect_to root_url, flash: { referral_code: 1234 }
+
+Partial :
+partial is just a snippet of reusable template, almost like a fragment,
+that has an underscore in its name, or a file name. So it's _form for example,
+and it accepts parameters that are available to you when the template is rendered : <%= render 'form' %>
+
+
+Helper "form_for" : generates a form tag for passed in object.
+Uses "POST" by defaults unlike classical html forms.
+
+f.text_field : generates input type "text" fiedl.
+f.text_area : generates a larger area to write text content. Can specify a size.
+Many other helpers : f.date_select, f.time_select, etc.
+:placeholder : hash entry to specify a gray text in a text field(placeholder, go google trad)
+
+f.submit : accepts a name of the button with the first parameter, or generates one based
+on the model and type of action : Create, Update, etc.
+Examples:
+
+<div class="field">
+  <%= f.label :title, "Heading" %><br>
+  <%= f.text_field :title, placeholder: "Have a great title?" %>
+</div>
+
+<div class="field">
+  <%= f.label :content %><br>
+  <%= f.text_area :content, size: "10x3" %> (10 columns and 3 rows)
+</div>
+
+LAYOUTS :
+ 1. views/layouts/application.html.erb is used by default as a shell by any view template.
+ 2. if a layout with a controller name is present in the layouts folder, it will be applied.
+ 3. we can use layout method inside a controller to specify the controller layout : layout 'some_layout'
+ 4. or we can specify a layout for only one method, with : render layout: 'my_layout'
+ 5. or if we don't want a layout, just use : render layout: false
