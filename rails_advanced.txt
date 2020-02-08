@@ -157,3 +157,131 @@ we could just put on the general layout these lines :
 ...
 
 And delete this line in the other views : <p id="notice"><%= notice %></p>
+
+=========== Nested Resources =============
+
+We can define a nested resource in the routes.rb file.
+Example of book's notes : notes are embedded within a single book:
+
+routes.rb :
+
+resources :books do
+  resources :notes, only: [:create, :destroy]# Nested resource
+end
+
+We can allow a set of actions for a nested resource like the above : create and destroy.
+Then, we just have to fill the note controller defining create and destroy actions.
+
+The routes will look like that : We see that a note a specify after a book id.
+
+book_notes POST   /books/:book_id/notes(.:format)     notes#create
+ book_note DELETE /books/:book_id/notes/:id(.:format) notes#destroy
+     books GET    /books(.:format)                    books#index
+           POST   /books(.:format)                    books#create
+  new_book GET    /books/new(.:format)                books#new
+ edit_book GET    /books/:id/edit(.:format)           books#edit
+      book GET    /books/:id(.:format)                books#show
+.......
+
+We must pass each time the parent and the child when we manipulate a nested resource
+in html content to identify the paths, in form_for or link_to helpers for example.
+For example with the notes of a book, in the note partial view, when we want to
+delete a note from a book, note the use of the two parameters : @book and note
+to specify the path.
+
+    <%= link_to "Delete Note", [@book, note], method: :delete %>
+
+When we wanna create a new note from a book show view, we call again the two paramers
+in the form: @book and @book.notes.new to specify the path.
+
+  <%= form_for([@book, @book.notes.new]) do |f| %>
+
+
+Content_tag helper : allow generating html
+Examples :
+
+irb(main):001:0> helper.content_tag :p, "Hello there"
+=> "<p>Hello there</p>"
+
+irb(main):004:0> helper.content_tag(:div, helper.content_tag(:p, "cool"), class: "world")
+=> "<div class=\"world\"><p>cool</p></div>"
+
+time_ago_in_words helper : generate a sentence from a date variable
+
+simple_format helper : display a text within a <br/> tag
+
+
+======= Authentication =========
+We will use the gem  'bcrypt' put by default in the Gemfile but commented.
+
+To be able to authenticate a user, the user must have in his table the "password_digest" column,
+it's mandatory.
+Then in the model of the user, put this helper : "has_secure_password" . It adds a virtual
+attribute which is "password" that we'll use for create a new user. When creating a new user
+with a password attribute, the password will be "hashed" or "encrypted" and added to the
+password_digest column. To identify the user, the password entry must match after
+encrypting to the password_digest entry.
+
+Example: Note the use of authenticate method.
+
+irb(main):002:0> Reviewer.column_names
+=> ["id", "name", "password_digest", "created_at", "updated_at"]
+irb(main):005:0> Reviewer.create! name: "Joe", password: "abc123"
+=> #<Reviewer id: 1, name: "Joe", password_digest: "$2a$12$AhTkbgmEK/2rSxpyeeT9bep1OUkZC99uRHHunV/Cxt/...", created_at: "2020-02-08 14:12:36", updated_at: "2020-02-08 14:12:36">
+irb(main):008:0> joe = Reviewer.find_by name: "Joe"
+=> #<Reviewer id: 1, name: "Joe", password_digest: "$2a$12$AhTkbgmEK/2rSxpyeeT9bep1OUkZC99uRHHunV/Cxt/...", created_at: "2020-02-08 14:12:36", updated_at: "2020-02-08 14:12:36">
+irb(main):009:0> joe.authenticate("somepassword")
+=> false
+irb(main):010:0> joe.authenticate("abc123")
+=> #<Reviewer id: 1, name: "Joe", password_digest: "$2a$12$AhTkbgmEK/2rSxpyeeT9bep1OUkZC99uRHHunV/Cxt/...", created_at: "2020-02-08 14:12:36", updated_at: "2020-02-08 14:12:36">
+
+==== HTTP session ====
+
+We create a session resource : rails g controller session new create destroy
+We fill the session view with a form getting  reviewer attributes and redirecting to sessions#create action.
+
+<%= form_for(:reviewer, url: sessions_path) do |f| %> <!-- sessions_path = sessions#create, see rake:routes -->
+
+We can configure new routes to redirect to login/logout pages within routes.rb,
+with the appropriate HTTP method :
+
+resources :sessions, only: [:new, :create, :destroy]
+get "/login" => "sessions#new", as: "login"
+delete "/logout" => "sessions#destroy", as: "logout"
+
+We complete the create action of the session controller to identify and valide
+the user: Note the session keyword : it creates a cookie for the session in the client browser.
+
+def create
+  reviewer = Reviewer.find_by(name: params[:reviewer][:name])
+  password = params[:reviewer][:password]
+
+  if reviewer && reviewer.authenticate(password)
+    session[:reviewer_id] = reviewer.id
+    redirect_to root_path, notice: "Logged in successfully"
+  else
+    redirect_to login_path, alert: "Invalid username/password combination"
+  end
+end
+
+To destroy a session, call "reset_session" :
+
+def destroy
+  reset_session # wipe out session and everything in it
+  redirect_to login_path, notice: "You have been logged out"
+end
+
+To lockdown the website unless we are logged in, put a before_action in the ApplicationController :
+
+before_action :ensure_login
+
+protected
+  def ensure_login
+    redirect_to login_path unless session[:reviewer_id]
+  end
+
+We put the ensure_login action as protected to get it the chield controllers (developer's controllers).
+To avoid an infinite loop with the ensure_login before_action, we put this helper in the SessionsController :
+it allows to skip the before_action ensure_login for specified actions.
+
+skip_before_action :ensure_login, only: [:new, :create]
