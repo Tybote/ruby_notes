@@ -130,3 +130,30 @@ LAYOUTS :
  3. we can use layout method inside a controller to specify the controller layout : layout 'some_layout'
  4. or we can specify a layout for only one method, with : render layout: 'my_layout'
  5. or if we don't want a layout, just use : render layout: false
+
+
+ ========= Module 4 ActionPack ============
+ Notes :
+ When we created a model with : rails g model .....
+ We can generate the controller and view after the precedent generation :
+ rails g scaffold_controller model_name columns...
+ Example :
+ 1. rails g model book name author reviewer:references
+ 2. rails g scaffold_controller book name author
+
+ To redirect root page to a specific page :
+ In config/routes.rb, simply put (for displaying all books for example) :
+ resources :books
+ root to: "books#index"
+
+We can use app/views/layouts/application.html.erb to have general behaviour withing all our views.
+For example, for all flash notifications, instead of having a notice line in each view,
+we could just put on the general layout these lines :
+...
+<% flash.each do |key, value| %>
+  <p id='<%=key %>'><%= value %></p>
+<% end %>
+<%= yield %>
+...
+
+And delete this line in the other views : <p id="notice"><%= notice %></p>

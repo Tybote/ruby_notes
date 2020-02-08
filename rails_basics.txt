@@ -521,3 +521,8 @@ heroku ps:scale web=1
 heroku pg:info
 
 heroku local web
+
+=============================
+
+To generate rpsec tests files :
+rails generate rspec:install
