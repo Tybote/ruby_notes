@@ -504,13 +504,22 @@ end
 
 ====== Commandes ======
 
-heroku login
+heroku login => will open a login page in a browser, and redirect us to the console then
 
-heroku create
+heroku create => create a remote repo to push our website.
 
-heroku open
+Don't forget to put gem 'pg' (postgres) to the Gemfile production group, and gem 'sqlite3' to the development group.
+Once I had an error while opening my website because of pg gem. I had to specify a version :
+  gem 'pg', '~> 0.20'
 
-heroku logs --tail
+To populate the postgres db in heroku server, run the command:
+
+heroku run rake db:migrate
+heroku run rake db:seed
+
+heroku open => after pushing
+
+heroku logs --tail => enable logs of the heroku servers in our console
 
 heroku ps
 
